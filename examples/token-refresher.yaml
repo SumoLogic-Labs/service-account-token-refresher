@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  namespace: app
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: token-refresher
+  namespace: app
+rules:
+- apiGroups: [""]
+  resources: ["serviceaccounts/token"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: token-refresher
+  namespace: app
+subjects:
+- kind: ServiceAccount
+  name: app
+  namespace: app
+roleRef:
+  kind: ClusterRole
+  name: token-refresher
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: long-draining-pod
+  namespace: app
+spec:
+  containers:
+  - image: service-account-token-refresher:latest # update this
+    imagePullPolicy: Always
+    name: token-refresher
+    env:
+    - name: DEFAULT_TOKEN_FILE
+      value: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+    - name: TOKEN_FILE
+      value: /var/run/secrets/token-refresher/token
+    - name: EXPIRATION_DURATION
+      value: 10m
+    - name: REFRESH_INTERVAL
+      value: 1m
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.namespace
+    - name: SERVICE_ACCOUNT
+      value: app
+    - name: AWS_WEB_IDENTITY_TOKEN_FILE
+      value: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+    volumeMounts:
+    - mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
+      name: aws-iam-token
+      readOnly: true
+    - mountPath: /var/run/secrets/token-refresher
+      name: token-refresher
+  - name: long-draining-app
+    image: alpine
+    command:
+    - sh
+    - -c
+    - |
+      for i in `seq 1 10`
+      do
+        # prints the token's expiry
+        echo "Now: $(date)"
+        EXPIRY=$(awk -F . '{if (length($2) % 4 == 3) print $2"="; else if (length($2) % 4 == 2) print $2"=="; else print $2; }' $AWS_WEB_IDENTITY_TOKEN_FILE | tr -- '-_' '+/' | base64 -d | awk -F , '{print $2}' | awk -F : '{print "@"$2}' | xargs date -d)
+        echo "Exp: $EXPIRY"
+        echo
+        sleep 20s
+      done
+    lifecycle:
+      preStop:
+        exec:
+          command:
+            - sh
+            - -c
+            - # custom draining logic here
+              sleep 30s &&
+              touch /var/run/secrets/token-refresher/shutdown
+    env:
+    - name: AWS_WEB_IDENTITY_TOKEN_FILE
+      value: /var/run/secrets/token-refresher/token
+    volumeMounts:
+    - mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
+      name: aws-iam-token
+      readOnly: true
+    - name: token-refresher
+      mountPath: /var/run/secrets/token-refresher
+      readOnly: false
+  terminationGracePeriodSeconds: 180
+  serviceAccountName: app
+  volumes:
+  - name: token-refresher
+    emptyDir: {}
+  - name: aws-iam-token
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          audience: sts.amazonaws.com
+          path: token
