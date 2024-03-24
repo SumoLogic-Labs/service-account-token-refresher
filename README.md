@@ -31,6 +31,29 @@ The token refresher is designed to operate as a sidecar container alongside your
 
    In the active state, the refresher begins to regularly request a new token from the Kubernetes API server before the current one expires. It includes robust error handling to manage potential API server issues. This process continues until the application signals the refresher to stop.
 
+# Usage
+
+```sh
+$ token-refresher --help
+A sidecar which starts auto-refreshing the service account token when the default one is close to expiry or container receives a shutdown signal.
+
+Usage:
+  token-refresher [flags]
+
+Flags:
+      --default_token_file string      path to default service account token file (default "/var/run/secrets/eks.amazonaws.com/serviceaccount/token")
+      --expiration_duration duration   token expiry duration (default 2h0m0s)
+  -h, --help                           help for token-refresher
+      --kubeconfig string              (optional) absolute path to the kubeconfig file (default "/home/token-refresher/.kube/config")
+      --max_attempts int               max retries on token refresh failure (default 3)
+  -n, --namespace string               current namespace
+      --refresh_interval duration      token refresh interval (default 1h0m0s)
+  -s, --service_account string         name of service account to issue token for
+      --sleep duration                 sleep duration between retries (default 20s)
+      --token_audience strings         comma separated token audience (default [sts.amazonaws.com])
+      --token_file string              path to self-managed service account token file (default "/var/run/secrets/token-refresher/token")
+```
+
 # Backstory
 
 While moving a microservice to Kubernetes, we encountered a scenario where the service required over 24 hours to fully drain. We set up a PreStop hook and extended the `terminationGracePeriodSeconds` to accommodate this. However, we soon faced `ExpiredTokenException` errors.
