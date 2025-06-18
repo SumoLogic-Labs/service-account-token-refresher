@@ -117,7 +117,7 @@ func (r TokenRefresher) refreshLoop(client kubernetes.Interface) {
 	fmt.Println("Starting refresh loop")
 	fmt.Printf("Will refresh every %v\n", r.RefreshInterval)
 	refreshTicker := ticker.NewTicker(r.RefreshInterval)
-	shutdownTicker := ticker.NewTicker(1 * time.Minute)
+	shutdownTicker := ticker.NewTicker(r.ShutdownInterval)
 	defer refreshTicker.Stop()
 	defer shutdownTicker.Stop()
 	for {
