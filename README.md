@@ -48,6 +48,7 @@ Flags:
       --max_attempts int               max retries on token refresh failure (default 3)
   -n, --namespace string               current namespace
       --refresh_interval duration      token refresh interval (default 1h0m0s)
+      --shutdown_interval duration     token refresher shutdown check interval (default 1m0s)
   -s, --service_account string         name of service account to issue token for
       --sleep duration                 sleep duration between retries (default 20s)
       --token_audience strings         comma separated token audience (default [sts.amazonaws.com])

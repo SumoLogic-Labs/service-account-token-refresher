@@ -26,6 +26,7 @@ type TokenRefresher struct {
 	TokenAudience      []string      `mapstructure:"token_audience"`
 	ExpirationDuration time.Duration `mapstructure:"expiration_duration"`
 	RefreshInterval    time.Duration `mapstructure:"refresh_interval"`
+	ShutdownInterval   time.Duration `mapstructure:"shutdown_interval"`
 	Retryer            retry.Retryer `mapstructure:",squash"`
 
 	minExpiryDuration time.Duration
@@ -115,25 +116,31 @@ func (r TokenRefresher) monitorToken(stopCh <-chan struct{}) <-chan string {
 func (r TokenRefresher) refreshLoop(client kubernetes.Interface) {
 	fmt.Println("Starting refresh loop")
 	fmt.Printf("Will refresh every %v\n", r.RefreshInterval)
-	ticker := ticker.NewTicker(r.RefreshInterval)
-	defer ticker.Stop()
-	for range ticker.C {
-		// We could setup a file-watcher for faster shutdown instead of waiting for an entire loop interval
-		if r.shouldShutdown() {
-			if err := os.Remove(r.shutdownFile); err != nil {
-				fmt.Printf("unable to remove shutdown file: %s\n", err.Error())
+	refreshTicker := ticker.NewTicker(r.RefreshInterval)
+	shutdownTicker := ticker.NewTicker(1 * time.Minute)
+	defer refreshTicker.Stop()
+	defer shutdownTicker.Stop()
+	for {
+		select {
+		case <-refreshTicker.C:
+			err := r.Retryer.Do(func() (error, bool) {
+				return r.refresh(client), true
+			})
+			if err != nil {
+				fmt.Printf("unable to refresh token: %s\n", err.Error())
+				continue
 			}
-			break
-		}
+			fmt.Println("Refreshed token")
 
-		err := r.Retryer.Do(func() (error, bool) {
-			return r.refresh(client), true
-		})
-		if err != nil {
-			fmt.Printf("unable to refresh token: %s\n", err.Error())
-			continue
+		case <-shutdownTicker.C:
+			if r.shouldShutdown() {
+				fmt.Println("Shutdown signal detected")
+				if err := os.Remove(r.shutdownFile); err != nil {
+					fmt.Printf("unable to remove shutdown file: %s\n", err.Error())
+				}
+				return
+			}
 		}
-		fmt.Println("Refreshed token")
 	}
 }
 
