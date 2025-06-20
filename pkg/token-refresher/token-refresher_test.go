@@ -241,6 +241,7 @@ func setup() (*TokenRefresher, func()) {
 		TokenFile:          path.Join(testDir, "token"),
 		ExpirationDuration: time.Hour * 2, // used to test if refresh() is sending this correctly to apiserver
 		RefreshInterval:    time.Millisecond * 200,
+		ShutdownInterval:   time.Millisecond * 200,
 		Namespace:          "test-ns",
 		ServiceAccount:     "test-sa",
 
