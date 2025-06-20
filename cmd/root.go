@@ -53,6 +53,7 @@ func init() {
 	rootCmd.Flags().StringSlice("token_audience", []string{"sts.amazonaws.com"}, "comma separated token audience")
 	rootCmd.Flags().Duration("expiration_duration", time.Hour*2, "token expiry duration")
 	rootCmd.Flags().Duration("refresh_interval", time.Hour*1, "token refresh interval")
+	rootCmd.Flags().Duration("shutdown_interval", time.Minute*1, "token refresher shutdown check interval")
 	rootCmd.Flags().Int("max_attempts", 3, "max retries on token refresh failure")
 	rootCmd.Flags().Duration("sleep", time.Second*20, "sleep duration between retries")
 

@@ -47,6 +47,8 @@ spec:
       value: 10m
     - name: REFRESH_INTERVAL
       value: 1m
+    - name: SHUTDOWN_INTERVAL
+      value: 1m
     - name: NAMESPACE
       valueFrom:
         fieldRef:
