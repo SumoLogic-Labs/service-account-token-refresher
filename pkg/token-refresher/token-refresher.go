@@ -116,6 +116,7 @@ func (r TokenRefresher) monitorToken(stopCh <-chan struct{}) <-chan string {
 func (r TokenRefresher) refreshLoop(client kubernetes.Interface) {
 	fmt.Println("Starting refresh loop")
 	fmt.Printf("Will refresh every %v\n", r.RefreshInterval)
+	fmt.Printf("Will check for shutdown file every %v\n", r.ShutdownInterval)
 	refreshTicker := ticker.NewTicker(r.RefreshInterval)
 	shutdownTicker := ticker.NewTicker(r.ShutdownInterval)
 	defer refreshTicker.Stop()
